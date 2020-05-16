@@ -16,10 +16,8 @@ sourceSets.main {
 }
 
 dependencies {
-	compile(
-		project(':com.ibm.wala.shrike'),
-		project(':com.ibm.wala.util'),
-		)
+	implementation project(':WALA:com.ibm.wala.shrike')
+	implementation project(':WALA:com.ibm.wala.util')
 }
 
 tasks.named('javadoc') {
@@ -30,5 +28,4 @@ tasks.named('javadoc') {
 		classpath += files project(dalvik).compileJava
 	}
 }
-
-apply from: rootProject.file("gradle-mvn-push.gradle")
+apply from: project(':WALA').file("gradle-mvn-push.gradle")

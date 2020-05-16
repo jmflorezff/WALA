@@ -16,4 +16,4 @@ tasks.named('javadoc') {
 	options.links 'https://docs.oracle.com/javase/8/docs/api/'
 }
 
-apply from: rootProject.file("gradle-mvn-push.gradle")
+apply from: project(':WALA').file("gradle-mvn-push.gradle")
