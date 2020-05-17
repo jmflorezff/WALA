@@ -196,9 +196,9 @@ public class SSACFG
     basicBlocks = new BasicBlock[G.getNumberOfNodes()];
     for (int i = 0; i <= G.getMaxNumber(); i++) {
       if (G.getCatchBlocks().get(i)) {
-        basicBlocks[i] = new ExceptionHandlerBasicBlock(i);
+        basicBlocks[i] = new ExceptionHandlerBasicBlock(this, i);
       } else {
-        basicBlocks[i] = new BasicBlock(i);
+        basicBlocks[i] = new BasicBlock(this, i);
       }
     }
     exit = basicBlocks[delegate.getNumber(delegate.exit())];
@@ -260,10 +260,11 @@ public class SSACFG
   }
 
   /** A Basic Block in an SSA IR */
-  public class BasicBlock implements ISSABasicBlock {
+  public static class BasicBlock implements ISSABasicBlock {
 
     /** state needed for the numbered graph. */
     private final int number;
+    private final SSACFG cfg;
 
     /** List of PhiInstructions associated with the entry of this block. */
     private SSAPhiInstruction stackSlotPhis[];
@@ -272,8 +273,9 @@ public class SSACFG
 
     private static final int initialCapacity = 10;
 
-    public BasicBlock(int number) {
+    public BasicBlock(SSACFG cfg, int number) {
       this.number = number;
+      this.cfg = cfg;
     }
 
     @Override
@@ -284,19 +286,19 @@ public class SSACFG
     /** Method getFirstInstructionIndex. */
     @Override
     public int getFirstInstructionIndex() {
-      IBasicBlock<?> B = delegate.getNode(number);
+      IBasicBlock<?> B = cfg.delegate.getNode(number);
       return B.getFirstInstructionIndex();
     }
 
     /** Is this block marked as a catch block? */
     @Override
     public boolean isCatchBlock() {
-      return delegate.getCatchBlocks().get(getNumber());
+      return cfg.delegate.getCatchBlocks().get(getNumber());
     }
 
     @Override
     public int getLastInstructionIndex() {
-      IBasicBlock<?> B = delegate.getNode(number);
+      IBasicBlock<?> B = cfg.delegate.getNode(number);
       return B.getLastInstructionIndex();
     }
 
@@ -438,7 +440,7 @@ public class SSACFG
     }
 
     public SSAPiInstruction getPiForRefAndPath(int n, Object path) {
-      return piInstructions.get(new RefPathKey(n, this, path));
+      return cfg.piInstructions.get(new RefPathKey(n, this, path));
     }
 
     private final LinkedList<SSAPiInstruction> blockPiInstructions = new LinkedList<>();
@@ -448,7 +450,7 @@ public class SSACFG
      * @param path can be the successor block in the pi instruction
      */
     public void addPiForRefAndPath(int n, Object path, SSAPiInstruction pi) {
-      piInstructions.put(new RefPathKey(n, this, path), pi);
+      cfg.piInstructions.put(new RefPathKey(n, this, path), pi);
       blockPiInstructions.add(pi);
     }
 
@@ -461,7 +463,7 @@ public class SSACFG
       int lookup = getFirstInstructionIndex();
       final int end = getLastInstructionIndex();
       // skip to first non-null instruction
-      while (lookup <= end && instructions[lookup] == null) {
+      while (lookup <= end && cfg.instructions[lookup] == null) {
         lookup++;
       }
       final int dummy = lookup;
@@ -475,9 +477,9 @@ public class SSACFG
 
         @Override
         public SSAInstruction next() {
-          SSAInstruction i = instructions[start];
+          SSAInstruction i = cfg.instructions[start];
           start++;
-          while (start <= end && instructions[start] == null) {
+          while (start <= end && cfg.instructions[start] == null) {
             start++;
           }
           return i;
@@ -500,7 +502,7 @@ public class SSACFG
       }
 
       for (int i = getFirstInstructionIndex(); i <= getLastInstructionIndex(); i++) {
-        SSAInstruction s = instructions[i];
+        SSAInstruction s = cfg.instructions[i];
         if (s != null) {
           result.add(s);
         }
@@ -591,11 +593,11 @@ public class SSACFG
           + ']'
           + getNumber()
           + " - "
-          + method.getSignature();
+          + cfg.method.getSignature();
     }
 
     private SSACFG getGraph() {
-      return SSACFG.this;
+      return cfg;
     }
 
     @Override
@@ -618,12 +620,12 @@ public class SSACFG
 
     @Override
     public IMethod getMethod() {
-      return method;
+      return cfg.method;
     }
 
     @Override
     public int hashCode() {
-      return delegate.getNode(getNumber()).hashCode() * 6271;
+      return cfg.delegate.getNode(getNumber()).hashCode() * 6271;
     }
 
     /*
@@ -631,7 +633,7 @@ public class SSACFG
      */
     @Override
     public boolean isExitBlock() {
-      return this == SSACFG.this.exit();
+      return this == cfg.exit();
     }
 
     /*
@@ -639,12 +641,12 @@ public class SSACFG
      */
     @Override
     public boolean isEntryBlock() {
-      return this == SSACFG.this.entry();
+      return this == cfg.entry();
     }
 
     @Override
     public SSAInstruction getLastInstruction() {
-      return instructions[getLastInstructionIndex()];
+      return cfg.instructions[getLastInstructionIndex()];
     }
 
     /** The {@link ExceptionHandlerBasicBlock} subclass will override this. */
@@ -654,8 +656,9 @@ public class SSACFG
     }
   }
 
-  public class ExceptionHandlerBasicBlock extends BasicBlock {
+  public static class ExceptionHandlerBasicBlock extends BasicBlock {
 
+    private final SSACFG cfg;
     /** The type of the exception caught by this block. */
     private TypeReference[] exceptionTypes;
 
@@ -666,8 +669,9 @@ public class SSACFG
     /** Instruction that defines the exception value this block catches */
     private SSAGetCaughtExceptionInstruction catchInstruction;
 
-    public ExceptionHandlerBasicBlock(int number) {
-      super(number);
+    public ExceptionHandlerBasicBlock(SSACFG cfg, int number) {
+      super(cfg, number);
+      this.cfg = cfg;
     }
 
     public SSAGetCaughtExceptionInstruction getCatchInstruction() {
@@ -702,7 +706,7 @@ public class SSACFG
 
     @Override
     public String toString() {
-      return "BB(Handler)[SSA]" + getNumber() + " - " + method.getSignature();
+      return "BB(Handler)[SSA]" + getNumber() + " - " + cfg.method.getSignature();
     }
 
     public void addCaughtExceptionType(TypeReference exceptionType) {

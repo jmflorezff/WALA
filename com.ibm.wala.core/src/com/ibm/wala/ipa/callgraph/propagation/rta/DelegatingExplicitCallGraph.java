@@ -51,11 +51,14 @@ public class DelegatingExplicitCallGraph extends ExplicitCallGraph {
    *   <li>a CallSite if we're delegating these edges to another node
    * </ul>
    */
-  public class DelegatingCGNode extends ExplicitNode {
+  public static class DelegatingCGNode extends ExplicitNode {
 
-    protected DelegatingCGNode(IMethod method, Context C) {
-      super(method, C);
-    }
+      private final DelegatingExplicitCallGraph callGraph;
+
+      protected DelegatingCGNode(DelegatingExplicitCallGraph callGraph, IMethod method, Context C) {
+          super(callGraph, method, C);
+          this.callGraph = callGraph;
+      }
 
     /*
      * @see com.ibm.wala.ipa.callgraph.impl.ExplicitCallGraph.ExplicitNode#getAllTargetNumbers()
@@ -68,7 +71,7 @@ public class DelegatingExplicitCallGraph extends ExplicitCallGraph {
         if (n instanceof CallSite) {
           ExplicitNode delegate = (ExplicitNode) ((CallSite) n).getNode();
           IntSet s =
-              DelegatingExplicitCallGraph.this.getPossibleTargetNumbers(
+              callGraph.getPossibleTargetNumbers(
                   delegate, ((CallSite) n).getSite());
           if (s != null) {
             result.addAll(s);
@@ -88,7 +91,7 @@ public class DelegatingExplicitCallGraph extends ExplicitCallGraph {
         CallSite p = (CallSite) result;
         CGNode n = p.getNode();
         CallSiteReference s = p.getSite();
-        return DelegatingExplicitCallGraph.this.getPossibleTargets(n, s);
+        return callGraph.getPossibleTargets(n, s);
       } else {
         return super.getPossibleTargets(site);
       }
@@ -115,7 +118,7 @@ public class DelegatingExplicitCallGraph extends ExplicitCallGraph {
           if (n instanceof CallSite) {
             ExplicitNode delegate = (ExplicitNode) ((CallSite) n).getNode();
             IntSet s =
-                DelegatingExplicitCallGraph.this.getPossibleTargetNumbers(
+                callGraph.getPossibleTargetNumbers(
                     delegate, ((CallSite) n).getSite());
             if (s != null && s.contains(y)) {
               return true;
@@ -133,7 +136,7 @@ public class DelegatingExplicitCallGraph extends ExplicitCallGraph {
         CallSite p = (CallSite) result;
         CGNode n = p.getNode();
         CallSiteReference s = p.getSite();
-        return DelegatingExplicitCallGraph.this.getNumberOfTargets(n, s);
+        return callGraph.getNumberOfTargets(n, s);
       } else {
         return super.getNumberOfTargets(site);
       }
@@ -145,7 +148,7 @@ public class DelegatingExplicitCallGraph extends ExplicitCallGraph {
       targets.set(site.getProgramCounter(), d);
       int y = getCallGraph().getNumber(this);
       int x = getCallGraph().getNumber(delegateNode);
-      delegateR.add(x, y);
+      callGraph.delegateR.add(x, y);
     }
   }
 
@@ -155,7 +158,7 @@ public class DelegatingExplicitCallGraph extends ExplicitCallGraph {
    */
   @Override
   protected ExplicitNode makeNode(IMethod method, Context context) {
-    return new DelegatingCGNode(method, context);
+    return new DelegatingCGNode(this, method, context);
   }
 
   private class DelegatingEdgeManager extends ExplicitEdgeManager {

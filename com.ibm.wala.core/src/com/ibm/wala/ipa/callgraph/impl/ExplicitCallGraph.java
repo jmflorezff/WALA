@@ -81,7 +81,7 @@ public class ExplicitCallGraph extends BasicCallGraph<SSAContextInterpreter>
 
   /** subclasses may wish to override! */
   protected ExplicitNode makeNode(IMethod method, Context context) {
-    return new ExplicitNode(method, context);
+    return new ExplicitNode(this, method, context);
   }
 
   /** subclasses may wish to override! */
@@ -120,7 +120,8 @@ public class ExplicitCallGraph extends BasicCallGraph<SSAContextInterpreter>
     return result;
   }
 
-  public class ExplicitNode extends NodeImpl {
+  // Turned into a static class to be able to serialize
+  public static class ExplicitNode extends NodeImpl {
 
     /**
      * A Mapping from call site program counter (int) -&gt; Object, where Object is a CGNode if
@@ -130,12 +131,21 @@ public class ExplicitCallGraph extends BasicCallGraph<SSAContextInterpreter>
     protected final SparseVector<Object> targets = new SparseVector<>();
 
     private final MutableSharedBitVectorIntSet allTargets = new MutableSharedBitVectorIntSet();
+    private final ExplicitCallGraph callGraph;
 
-    private WeakReference<IR> ir = new WeakReference<>(null);
-    private WeakReference<DefUse> du = new WeakReference<>(null);
+    private transient WeakReference<IR> ir = new WeakReference<>(null);
+    private transient WeakReference<DefUse> du = new WeakReference<>(null);
 
-    protected ExplicitNode(IMethod method, Context C) {
+      /**
+       * WARNING: Only for serialization
+       */
+      protected ExplicitNode() {
+          callGraph = null;
+      }
+
+    protected ExplicitNode(ExplicitCallGraph callGraph, IMethod method, Context C) {
       super(method, C);
+      this.callGraph = callGraph;
     }
 
     protected Set<CGNode> getPossibleTargets(CallSiteReference site) {
@@ -314,7 +324,7 @@ public class ExplicitCallGraph extends BasicCallGraph<SSAContextInterpreter>
     }
 
     public ExplicitCallGraph getCallGraph() {
-      return ExplicitCallGraph.this;
+      return callGraph;
     }
 
     @Override
@@ -342,7 +352,7 @@ public class ExplicitCallGraph extends BasicCallGraph<SSAContextInterpreter>
 
   protected class ExplicitEdgeManager implements NumberedEdgeManager<CGNode> {
 
-    final IntFunction<CGNode> toNode =
+    transient final IntFunction<CGNode> toNode =
         i -> {
           CGNode result = getNode(i);
           // if (Assertions.verifyAssertions && result == null) {

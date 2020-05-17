@@ -179,13 +179,13 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
       }
     }
 
-    BasicBlock entry = new BasicBlock(-1);
+    BasicBlock entry = new BasicBlock(this,-1);
     addNode(entry);
 
     int j = 1;
     for (int i = 0; i < r.length; i++) {
       if (r[i]) {
-        BasicBlock b = new BasicBlock(i);
+        BasicBlock b = new BasicBlock(this, i);
         addNode(b);
         if (catchers[i]) {
           setCatchBlock(j);
@@ -194,7 +194,7 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
       }
     }
 
-    BasicBlock exit = new BasicBlock(-1);
+    BasicBlock exit = new BasicBlock(this, -1);
     addNode(exit);
   }
 
@@ -207,18 +207,20 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
     return getNode(instruction2Block[index]);
   }
 
-  public final class BasicBlock extends NodeWithNumber implements IBasicBlock<IInstruction> {
+  public static final class BasicBlock extends NodeWithNumber implements IBasicBlock<IInstruction> {
 
     /** The number of the ShrikeBT instruction that begins this block. */
     private final int startIndex;
+      private final ShrikeCFG cfg;
 
-    public BasicBlock(int startIndex) {
+      public BasicBlock(ShrikeCFG cfg, int startIndex) {
       this.startIndex = startIndex;
-    }
+          this.cfg = cfg;
+      }
 
     @Override
     public boolean isCatchBlock() {
-      return ShrikeCFG.this.isCatchBlock(getNumber());
+      return cfg.isCatchBlock(getNumber());
     }
 
     private void computeOutgoingEdges() {
@@ -226,20 +228,20 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
         System.err.println("Block " + this + ": computeOutgoingEdges()");
       }
 
-      IInstruction last = getInstructions()[getLastInstructionIndex()];
+      IInstruction last = cfg.getInstructions()[getLastInstructionIndex()];
       int[] targets = last.getBranchTargets();
       for (int target : targets) {
-        BasicBlock b = getBlockForInstruction(target);
+        BasicBlock b = cfg.getBlockForInstruction(target);
         addNormalEdgeTo(b);
       }
       addExceptionalEdges(last);
       if (last.isFallThrough()) {
-        BasicBlock next = getNode(getNumber() + 1);
+        BasicBlock next = cfg.getNode(getNumber() + 1);
         addNormalEdgeTo(next);
       }
       if (last instanceof ReturnInstruction) {
         // link each return instruction to the exit block.
-        BasicBlock exit = exit();
+        BasicBlock exit = cfg.exit();
         addNormalEdgeTo(exit);
       }
     }
@@ -310,7 +312,7 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
             if (DEBUG) {
               System.err.println(" handler " + element);
             }
-            BasicBlock b = getBlockForInstruction(element.getHandler());
+            BasicBlock b = cfg.getBlockForInstruction(element.getHandler());
             if (DEBUG) {
               System.err.println(" target " + b);
             }
@@ -331,7 +333,7 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
               if (element.getCatchClass() != null) {
                 ClassLoaderReference loader =
                     element.getCatchClassLoader() == null
-                        ? ShrikeCFG.this
+                        ? cfg
                             .getMethod()
                             .getDeclaringClass()
                             .getReference()
@@ -397,12 +399,12 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
           // if needed, add an edge to the exit block.
           if ((exceptionTypes == null && needEdgeToExitForAllHandlers)
               || (exceptionTypes != null && !exceptionTypes.isEmpty())) {
-            BasicBlock exit = exit();
+            BasicBlock exit = cfg.exit();
             addExceptionalEdgeTo(exit);
           }
         } else {
           // found no handler for this PEI ... link to the exit block.
-          BasicBlock exit = exit();
+          BasicBlock exit = cfg.exit();
           addExceptionalEdgeTo(exit);
         }
       }
@@ -411,7 +413,7 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
     private ExceptionHandler[] getExceptionHandlers() {
       ExceptionHandler[][] handlers;
       try {
-        handlers = method.getHandlers();
+        handlers = cfg.method.getHandlers();
       } catch (InvalidClassFileException e) {
         e.printStackTrace();
         Assertions.UNREACHABLE();
@@ -422,27 +424,27 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
     }
 
     private void addNormalEdgeTo(BasicBlock b) {
-      addNormalEdge(this, b);
+        cfg.addNormalEdge(this, b);
     }
 
     private void addExceptionalEdgeTo(BasicBlock b) {
-      addExceptionalEdge(this, b);
+        cfg.addExceptionalEdge(this, b);
     }
 
     @Override
     public int getLastInstructionIndex() {
-      if (this == entry() || this == exit()) {
+      if (this == cfg.entry() || this == cfg.exit()) {
         // these are the special end blocks
         return -2;
       }
-      if (getNumber() == (getMaxNumber() - 1)) {
+      if (getNumber() == (cfg.getMaxNumber() - 1)) {
         // this is the last non-exit block
-        return getInstructions().length - 1;
+        return cfg.getInstructions().length - 1;
       } else {
         int i = 1;
         BasicBlock next;
         do {
-          next = getNode(getNumber() + i);
+          next = cfg.getNode(getNumber() + i);
         } while (next == null);
         return next.getFirstInstructionIndex() - 1;
       }
@@ -458,9 +460,9 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
       return "BB[Shrike]"
           + getNumber()
           + " - "
-          + method.getDeclaringClass().getReference().getName()
+          + cfg.method.getDeclaringClass().getReference().getName()
           + '.'
-          + method.getName();
+          + cfg.method.getName();
     }
 
     /*
@@ -468,7 +470,7 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
      */
     @Override
     public boolean isExitBlock() {
-      return this == ShrikeCFG.this.exit();
+      return this == cfg.exit();
     }
 
     /*
@@ -476,7 +478,7 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
      */
     @Override
     public boolean isEntryBlock() {
-      return this == ShrikeCFG.this.entry();
+      return this == cfg.entry();
     }
 
     /*
@@ -484,12 +486,12 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
      */
     @Override
     public IMethod getMethod() {
-      return ShrikeCFG.this.getMethod();
+      return cfg.getMethod();
     }
 
     @Override
     public int hashCode() {
-      return hashBase + getNumber();
+      return cfg.hashBase + getNumber();
     }
 
     @Override
@@ -510,7 +512,7 @@ public class ShrikeCFG extends AbstractCFG<IInstruction, ShrikeCFG.BasicBlock>
     @Override
     public Iterator<IInstruction> iterator() {
       return new ArrayIterator<>(
-          getInstructions(), getFirstInstructionIndex(), getLastInstructionIndex());
+          cfg.getInstructions(), getFirstInstructionIndex(), getLastInstructionIndex());
     }
   }
 
