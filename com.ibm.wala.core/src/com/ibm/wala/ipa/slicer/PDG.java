@@ -488,12 +488,12 @@ public class PDG<T extends InstanceKey> implements NumberedGraph<Statement> {
                         // skip the edge to the base pointer
                         continue;
                       }
-                      if (use instanceof SSAArrayReferenceInstruction) {
-                        SSAArrayReferenceInstruction arr = (SSAArrayReferenceInstruction) use;
-                        if (def == arr.getIndex()) {
-                          // skip the edge to the array index
-                          continue;
-                        }
+                    }
+                    if (use instanceof SSAArrayReferenceInstruction) {
+                      SSAArrayReferenceInstruction arr = (SSAArrayReferenceInstruction) use;
+                      if (def == arr.getIndex()) {
+                        // skip the edge to the array index
+                        continue;
                       }
                     }
                   }
@@ -525,12 +525,12 @@ public class PDG<T extends InstanceKey> implements NumberedGraph<Statement> {
                     // skip the edge to the base pointer
                     continue;
                   }
-                  if (use instanceof SSAArrayReferenceInstruction) {
-                    SSAArrayReferenceInstruction arr = (SSAArrayReferenceInstruction) use;
-                    if (a.getValueNumber() == arr.getIndex()) {
-                      // skip the edge to the array index
-                      continue;
-                    }
+                }
+                if (use instanceof SSAArrayReferenceInstruction) {
+                  SSAArrayReferenceInstruction arr = (SSAArrayReferenceInstruction) use;
+                  if (a.getValueNumber() == arr.getIndex()) {
+                    // skip the edge to the array index
+                    continue;
                   }
                 }
               }
@@ -768,10 +768,6 @@ public class PDG<T extends InstanceKey> implements NumberedGraph<Statement> {
     if (use instanceof SSAFieldAccessInstruction) {
       SSAFieldAccessInstruction f = (SSAFieldAccessInstruction) use;
       return !f.isStatic();
-    } else if (use instanceof SSAArrayReferenceInstruction) {
-      return true;
-    } else if (use instanceof SSAArrayLengthInstruction) {
-      return true;
     } else {
       return false;
     }
