@@ -299,7 +299,11 @@ public class LambdaSummaryClass extends SyntheticClass {
           throw new Error("unexpected dynamic invoke type " + kind);
       }
 
-      int numParams = getClassHierarchy().resolveMethod(callee).getNumberOfParameters();
+      IMethod method = getClassHierarchy().resolveMethod(callee);
+      if (method==null) {
+          throw new UnresolvedMethodException();
+      }
+      int numParams = method.getNumberOfParameters();
       int params[] = new int[numParams];
       for (int i = isNew ? 1 : 0; i < invoke.getNumberOfPositionalParameters(); i++) {
         params[i] = args + i + 1;

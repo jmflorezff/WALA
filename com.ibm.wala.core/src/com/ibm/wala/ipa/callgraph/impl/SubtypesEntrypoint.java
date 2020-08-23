@@ -41,6 +41,11 @@ public class SubtypesEntrypoint extends DefaultEntrypoint {
 
   @Override
   protected TypeReference[] makeParameterTypes(IMethod method, int i) {
+      // Only include all subtypes for the owning type, not the parameters
+      // Static methods don't return the owning type as the first parameter
+      if (method.isStatic() || i != 0) {
+          return super.makeParameterTypes(method, i);
+      }
     TypeReference nominal = method.getParameterType(i);
     if (nominal.isPrimitiveType() || nominal.isArrayType()) return new TypeReference[] {nominal};
     else {

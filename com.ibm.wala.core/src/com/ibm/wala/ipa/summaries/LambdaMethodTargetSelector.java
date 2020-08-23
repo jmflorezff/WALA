@@ -49,12 +49,17 @@ public class LambdaMethodTargetSelector implements MethodTargetSelector {
           (SSAInvokeDynamicInstruction) caller.getIR().getCalls(site)[0];
 
       if (!methodSummaries.containsKey(invoke.getBootstrap())) {
-        MethodSummary summary = getSummaryForBootstrapMethod(caller, site, target, invoke);
+          MethodSummary summary;
+          try {
+              summary = getSummaryForBootstrapMethod(caller, site, target, invoke);
+          } catch (UnresolvedMethodException e) {
+              return null;
+          }
 
-        methodSummaries.put(
-            invoke.getBootstrap(),
-            new SummarizedMethod(
-                summary.getMethod(), summary, cha.lookupClass(target.getDeclaringClass())));
+          methodSummaries.put(
+                  invoke.getBootstrap(),
+                  new SummarizedMethod(
+                          summary.getMethod(), summary, cha.lookupClass(target.getDeclaringClass())));
       }
       return methodSummaries.get(invoke.getBootstrap());
 
